@@ -2,19 +2,21 @@
 
 class ventaController extends baseController
 {
+
     public static function crearVenta($id_cliente, $data, $servicio, $orderId)
-    {
-        return ventaModel::crearVenta([
-            "id_servicio" => $data['id_servicio'],
-            "id_cliente" => $id_cliente,
-            "id_asesor" => 0,
-            "precio" => $servicio['precio'],
-            "codigo" => uniqid("VEN-"),
-            "order_id" => $orderId,
-            "campos_form" => "",
-            "fecha_entrega" => date("Y-m-d H:i:s", strtotime("+{$servicio['fecha_entrega']} days"))
-        ]);
-    }
+{
+    return ventaModel::crearVenta([
+        "id_servicio" => $data['id_servicio'],
+        "id_cliente" => $id_cliente,
+        "id_asesor" => 0,
+        "precio" => $servicio['precio'],
+        "codigo" => uniqid("VEN-"),
+        "order_id" => $orderId,
+        "campos_form" => "",
+        "fecha_entrega" => self::sumarDiasHabiles($servicio['fecha_entrega'])
+    ]);
+}
+
 
 
     public static function actualizarEstadoVenta(

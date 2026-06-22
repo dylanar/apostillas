@@ -1,7 +1,21 @@
 <?php
 class baseController
 {
+	protected static function sumarDiasHabiles(int $dias): string
+{
+    // Arranca desde medianoche de hoy, no desde la hora actual
+    $fecha = new DateTime('today', new DateTimeZone('America/Bogota'));
+    $contados = 0;
 
+    while ($contados < $dias) {
+        $fecha->modify('+1 day');
+        if ($fecha->format('N') < 6) {
+            $contados++;
+        }
+    }
+
+    return $fecha->format('Y-m-d H:i:s');
+}
 	// Función auxiliar para mostrar alertas con SweetAlert
 	public function mostrarAlerta($icon, $message, $redirect)
 	{

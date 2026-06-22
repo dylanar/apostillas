@@ -25,7 +25,6 @@ class clienteController extends baseController
             return;
         }
     }
-
     // CREAR CLIENTE - FORMULARIO
     public function crearClienteForm()
     {
@@ -194,11 +193,13 @@ class clienteController extends baseController
         $asesor = $_POST["id_asesor"] ?? 0;
          // $codigoVenta = $this->generarCodigoLinkVenta($asesor, $_POST["nombre_asesor"]);
         $codigoVenta = $_POST["codigo_seguimiento"];
-        $dias_entrega = $_POST["fecha_entrega"];
-        $fechaHoy->modify("+{$dias_entrega} days");
-        // Convertir a datetime
-        $fecha_de_entrega = $fechaHoy->format("Y-m-d H:i:s");
 
+        // $dias_entrega = $_POST["fecha_entrega"];
+        // $fechaHoy->modify("+{$dias_entrega} days");
+        // // Convertir a datetime
+        // $fecha_de_entrega = $fechaHoy->format("Y-m-d H:i:s");
+        $dias_entrega = (int) $_POST["fecha_entrega"];
+        $fecha_de_entrega = self::sumarDiasHabiles($dias_entrega);
 
         $datosVenta = [
             "id_servicio" => $_POST["id_servicio"],
@@ -316,38 +317,6 @@ class clienteController extends baseController
 
         return;
     }
-
-
-    private function generarCodigoLinkVenta($id_asesor, $nombre_asesor, $longitudAleatoria = 6)
-    {
-        // Obtener la primera letra del primer nombre en mayúscula
-        $nombreLimpio = preg_replace('/[^a-zA-Z\s]/', '', $nombre_asesor); // Remover números y caracteres especiales
-        $partesNombre = explode(' ', trim($nombreLimpio));
-
-        if (empty($partesNombre[0])) {
-            $inicial = 'A'; // Letra por defecto si no hay nombre válido
-        } else {
-            $inicial = strtoupper(substr($partesNombre[0], 0, 1));
-        }
-
-        // Combinar inicial con ID del asesor
-        $baseCodigo = $inicial . $id_asesor;
-
-        // Generar caracteres aleatorios (solo mayúsculas y números)
-        $caracteres = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        $maxIndex = strlen($caracteres) - 1;
-        $aleatorio = '';
-
-        for ($i = 0; $i < $longitudAleatoria; $i++) {
-            $aleatorio .= $caracteres[random_int(0, $maxIndex)];
-        }
-
-        // Combinar todo
-        $codigo = $baseCodigo . $aleatorio;
-
-        return $codigo;
-    }
-
     public static function crearCliente($data)
     {
         // Buscar cliente por correo o cédula
@@ -370,8 +339,7 @@ class clienteController extends baseController
         ]);
     }
 
-
-    // CREAR CLIENTE - FORMULARIO
+    // ACTUALIZAR CLIENTE - FORMULARIO
     public function actClienteForm()
     {
         if (!isset($_POST["formRegistroCliente"]))
@@ -661,4 +629,36 @@ class clienteController extends baseController
 
         return;
     }
+        private function generarCodigoLinkVenta($id_asesor, $nombre_asesor, $longitudAleatoria = 6)
+    {
+        // Obtener la primera letra del primer nombre en mayúscula
+        $nombreLimpio = preg_replace('/[^a-zA-Z\s]/', '', $nombre_asesor); // Remover números y caracteres especiales
+        $partesNombre = explode(' ', trim($nombreLimpio));
+
+        if (empty($partesNombre[0])) {
+            $inicial = 'A'; // Letra por defecto si no hay nombre válido
+        } else {
+            $inicial = strtoupper(substr($partesNombre[0], 0, 1));
+        }
+
+        // Combinar inicial con ID del asesor
+        $baseCodigo = $inicial . $id_asesor;
+
+        // Generar caracteres aleatorios (solo mayúsculas y números)
+        $caracteres = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $maxIndex = strlen($caracteres) - 1;
+        $aleatorio = '';
+
+        for ($i = 0; $i < $longitudAleatoria; $i++) {
+            $aleatorio .= $caracteres[random_int(0, $maxIndex)];
+        }
+
+        // Combinar todo
+        $codigo = $baseCodigo . $aleatorio;
+
+        return $codigo;
+    }
+
+    
+
 }
