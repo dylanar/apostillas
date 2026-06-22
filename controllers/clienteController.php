@@ -27,296 +27,210 @@ class clienteController extends baseController
     }
     // CREAR CLIENTE - FORMULARIO
     public function crearClienteForm()
-    {
-        if (!isset($_POST["formRegistroCliente"]))
-            return;
+{
+    if (!isset($_POST["formRegistroCliente"]))
+        return;
 
-
-        // Verificar si existe el campo que indica el paso 1
-        if (!isset($_POST['paso1_nombres'])) {
-            $this->mostrarAlerta("error", "Datos incompletos.", "formulario");
-            return;
-        }
-
-        $tzBogota = new DateTimeZone('America/Bogota');
-        $fechaBogota = new DateTime('now', $tzBogota);
-        $fechaHoy = new DateTime('now', $tzBogota);
-        $fechaFormateada = $fechaBogota->format('Y-m-d H:i:s');
-
-        // Carpeta donde se guardarán los archivos
-        $uploads_dir = 'uploads/forms/';
-        if (!file_exists($uploads_dir)) {
-            mkdir($uploads_dir, 0777, true);
-        }
-
-        // ============================================
-        // PASO 1: DATOS PERSONALES (siempre vienen con prefijo 'paso1_')
-        // ============================================
-
-        if (isset($_POST["id_cliente"])) {
-            $idCliente = $_POST["id_cliente"];
-
-            $datosCliente = [
-                "nombre" => htmlspecialchars($_POST["paso1_nombres"] ?? ""),
-                "apellido" => htmlspecialchars($_POST["paso1_apellidos"] ?? ""),
-                "cedula" => htmlspecialchars($_POST["paso1_cedula"] ?? ""),
-                "telefono" => htmlspecialchars($_POST["paso1_celular"] ?? ""),
-                "wpp" => htmlspecialchars($_POST["paso1_whatsapp"] ?? ""),
-                "correo" => htmlspecialchars($_POST["paso1_correo"] ?? ""),
-                "tomo_servicio" => 1,
-                "id" => $idCliente
-            ];       
-
-            $respuestaCliente = clienteModel::actulizarCliebteFormWeb($datosCliente, "clientes");
-        } else {
-            $datosCliente = [
-                "nombre" => htmlspecialchars($_POST["paso1_nombres"] ?? ""),
-                "apellido" => htmlspecialchars($_POST["paso1_apellidos"] ?? ""),
-                "cedula" => htmlspecialchars($_POST["paso1_cedula"] ?? ""),
-                "telefono" => htmlspecialchars($_POST["paso1_celular"] ?? ""),
-                "wpp" => htmlspecialchars($_POST["paso1_whatsapp"] ?? ""),
-                "correo" => htmlspecialchars($_POST["paso1_correo"] ?? ""),
-                "tomo_servicio" => 1,
-                "fecha" => $fechaFormateada
-            ];
-
-            // Validar datos mínimos del cliente
-            if (
-                empty($datosCliente["nombre"]) || empty($datosCliente["cedula"]) ||
-                empty($datosCliente["telefono"]) || empty($datosCliente["correo"])
-            ) {
-                $this->mostrarAlerta("error", "Faltan datos personales obligatorios.", "formulario");
-                return;
-            }
-
-            $respuestaCliente = clienteModel::registrarCliente($datosCliente, "clientes");
-
-            if (!is_array($respuestaCliente) || $respuestaCliente[0] !== "success") {
-                $this->mostrarAlerta("error", "Error al registrar cliente.", "formulario");
-                return;
-            }
-
-            $idCliente = $respuestaCliente[1];
-        }
-
-
-
-        // ============================================
-        // PASO 2: DATOS DINÁMICOS DEL FORMULARIO
-        // ============================================
-        // Separar campos de texto y archivos
-
-        $camposArchivos = [];
-        $camposTexto = [];
-
-        // 1. Campos ocultos del sistema que NO deben guardarse
-        $excluirCamposSistema = [
-            'btnRegistroCliente',
-            'servicio',
-            'formRegistroCliente',
-            'codigo_seguimiento',
-            'id_servicio',
-            'id_asesor',
-            'id_cliente',
-            'cantidad_doc',
-            'abono_inicial',
-            'precio',
-            'nombre_asesor',
-            'fecha_entrega',
-            'codigo_referido'
-        ];
-
-        // 2. Prefijos que queremos excluir (Paso 1)
-        $excluirPrefijos = [
-            'paso1_',   // si los campos del paso 1 tienen prefijo
-        ];
-
-        // 3. Campos específicos del Paso 1 (sin prefijo)
-        $excluirPaso1Directos = [
-            'nombres',
-            'apellidos',
-            'correo',
-            'celular',
-            'whatsapp',
-            'cedula',
-            'metodo_pago',
-            'fecha_pago'
-        ];
-
-        foreach ($_POST as $key => $value) {
-
-            // A. Excluir campos ocultos del sistema
-            if (in_array($key, $excluirCamposSistema)) {
-                continue;
-            }
-
-            // B. Excluir por prefijo (paso1_)
-            foreach ($excluirPrefijos as $prefijo) {
-                if (strpos($key, $prefijo) === 0) {
-                    continue 2;
-                }
-            }
-
-            // C. Excluir campos del paso 1 sin prefijo
-            if (in_array($key, $excluirPaso1Directos)) {
-                continue;
-            }
-
-            // D. Guardar el resto
-            $camposTexto[$key] = htmlspecialchars($value);
-        }
-
-
-
-        // Procesar archivos del formulario
-        if (!empty($_FILES)) {
-            foreach ($_FILES as $key => $file) {
-                // Excluir archivos del paso 1 si los hubiera
-                if (strpos($key, 'paso1_') === 0) {
-                    continue;
-                }
-
-                if ($file['error'] === UPLOAD_ERR_OK) {
-                    $camposArchivos[$key] = $file;
-                } else if ($file['error'] !== UPLOAD_ERR_NO_FILE) {
-                    // Error en la subida (no es "no file")
-                    $this->mostrarAlerta("error", "Error al subir archivo: " . $key, "formulario");
-                    return;
-                }
-            }
-        }
-
-        // ============================================
-        // REGISTRAR SERVICIO
-        // ============================================
-
-        $asesor = $_POST["id_asesor"] ?? 0;
-         // $codigoVenta = $this->generarCodigoLinkVenta($asesor, $_POST["nombre_asesor"]);
-        $codigoVenta = $_POST["codigo_seguimiento"];
-
-        // $dias_entrega = $_POST["fecha_entrega"];
-        // $fechaHoy->modify("+{$dias_entrega} days");
-        // // Convertir a datetime
-        // $fecha_de_entrega = $fechaHoy->format("Y-m-d H:i:s");
-        $dias_entrega = (int) $_POST["fecha_entrega"];
-        $fecha_de_entrega = self::sumarDiasHabiles($dias_entrega);
-
-        $datosVenta = [
-            "id_servicio" => $_POST["id_servicio"],
-            "id_cliente" => $idCliente, // o un tipo específico si lo tienes
-            "id_asesor" => $asesor,
-            "precio" => $_POST["precio"],
-            "abono" => $_POST["abono_inicial"],
-            "codigo" => $codigoVenta,
-            "campos_form" => json_encode($camposTexto, JSON_UNESCAPED_UNICODE),
-            "cantidad" => $_POST["cantidad_doc"],
-            "fecha_entrega" => $fecha_de_entrega,
-            "codigo_referido" => $_POST["codigo_referido"] ?? "",
-            "fecha" => $fechaFormateada
-        ];
-
-        $respuestaVenta = clienteModel::registrarVenta($datosVenta, "ventas");
-
-        if (!is_array($respuestaVenta) || $respuestaVenta[0] !== "success") {
-            $this->mostrarAlerta("error", "Error al registrar la venta.", "formulario");
-            return;
-        }
-
-        $idVenta = $respuestaVenta[1];
-
-        // ============================================
-        // PROCESAR ARCHIVOS DEL PASO 2
-        // ============================================
-        if (!empty($camposArchivos)) {
-
-            foreach ($camposArchivos as $campoNombre => $archivo) {
-
-                if ($archivo['error'] === UPLOAD_ERR_OK) {
-
-                    $file_tmp = $archivo['tmp_name'];
-                    $file_name = basename($archivo['name']);
-                    $file_type = mime_content_type($file_tmp);
-
-                    // Tipos permitidos
-                    $tiposPermitidos = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-
-                    if (in_array($file_type, $tiposPermitidos)) {
-
-                        // Crear nombre seguro
-                        $extension = pathinfo($file_name, PATHINFO_EXTENSION);
-                        $nombreSinEspacios = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file_name);
-                        $nombreSinExtension = pathinfo($nombreSinEspacios, PATHINFO_FILENAME);
-
-                        $nuevo_nombre =
-                            $idVenta . "_" . time() . "_" . substr(md5($nombreSinExtension), 0, 8) . "." . $extension;
-
-                        $ruta_destino = $uploads_dir . $nuevo_nombre;
-
-                        if (move_uploaded_file($file_tmp, $ruta_destino)) {
-
-                            // Nombre legible automático
-                            $nombreLegible = ucfirst(str_replace('_', ' ', $campoNombre));
-
-                            $datosArchivo = [
-                                "id_venta" => $idVenta,                               // ← cambiado
-                                "nombre" => $nombreLegible,
-                                "nombre_archivo" => $nuevo_nombre,
-                                "ruta" => $ruta_destino,
-                                "tipo" => $file_type,
-                                "campo_origen" => $campoNombre,
-                                "tipo_ruta" => "web",
-                                "fecha" => $fechaFormateada
-                            ];
-
-                            clienteModel::subirArchivosFormClientes($datosArchivo, "archivos");
-                        } else {
-                            error_log("Error al mover archivo: $file_name");
-                        }
-                    } else {
-                        error_log("Tipo de archivo no permitido: $file_type ($file_name)");
-                    }
-                }
-            }
-        }
-
-        $datosPago = [
-            "id_venta" => $idVenta,
-            "id_asesor" => $_POST["id_asesor"],
-            "valor" => $_POST["abono_inicial"],
-            "metodo_pago" => $_POST["metodo_pago"],
-            "estado" => "aprobado",
-            "fecha_pago" => $_POST["fecha_pago"],
-            "fecha" => $fechaFormateada
-        ];
-
-
-        $respuestaPago = clienteModel::insertarPagoVenta($datosPago, "pagos");
-
-        $actualizarEstadoEnlace = clienteModel::actualizarEstadoEnlace($_POST["codigo_seguimiento"], 2, "enlace_temporal");
-
-        $wpp_cliente = !empty($_POST["paso1_whatsapp"] ?? "")
-            ? $_POST["paso1_whatsapp"]
-            : ($_POST["paso1_celular"] ?? "");
-        
-        require_once "functions/wpp.php";
-
-        enviarWhatsAppZenviaTemplate(
-            $wpp_cliente,
-            "89d67798-3cd8-442a-a621-9caf1c9b5e65",
-            [
-                "Nombre" => $_POST["paso1_nombres"]
-            ]
-        );
-
-
-       echo '<script>
-    window.location = "' . BASE_URL . 'registro-exitoso?ok=1&codigo=' . urlencode($_POST["codigo_seguimiento"]) . '";
-    </script>';
-    exit();
-
-
+    if (!isset($_POST['paso1_nombres'])) {
+        $this->mostrarAlerta("error", "Datos incompletos.", "formulario");
         return;
     }
+
+    $tzBogota = new DateTimeZone('America/Bogota');
+    $fechaBogota = new DateTime('now', $tzBogota);
+    $fechaFormateada = $fechaBogota->format('Y-m-d H:i:s');
+
+    $uploads_dir = 'uploads/forms/';
+    if (!file_exists($uploads_dir)) {
+        mkdir($uploads_dir, 0777, true);
+    }
+
+    // ============================================
+    // PASO 1: DATOS PERSONALES
+    // ============================================
+    if (isset($_POST["id_cliente"])) {
+        $idCliente = $_POST["id_cliente"];
+        $datosCliente = [
+            "nombre"        => htmlspecialchars($_POST["paso1_nombres"] ?? ""),
+            "apellido"      => htmlspecialchars($_POST["paso1_apellidos"] ?? ""),
+            "cedula"        => htmlspecialchars($_POST["paso1_cedula"] ?? ""),
+            "telefono"      => htmlspecialchars($_POST["paso1_celular"] ?? ""),
+            "wpp"           => htmlspecialchars($_POST["paso1_whatsapp"] ?? ""),
+            "correo"        => htmlspecialchars($_POST["paso1_correo"] ?? ""),
+            "tomo_servicio" => 1,
+            "id"            => $idCliente
+        ];
+        clienteModel::actulizarCliebteFormWeb($datosCliente, "clientes");
+    } else {
+        $datosCliente = [
+            "nombre"        => htmlspecialchars($_POST["paso1_nombres"] ?? ""),
+            "apellido"      => htmlspecialchars($_POST["paso1_apellidos"] ?? ""),
+            "cedula"        => htmlspecialchars($_POST["paso1_cedula"] ?? ""),
+            "telefono"      => htmlspecialchars($_POST["paso1_celular"] ?? ""),
+            "wpp"           => htmlspecialchars($_POST["paso1_whatsapp"] ?? ""),
+            "correo"        => htmlspecialchars($_POST["paso1_correo"] ?? ""),
+            "tomo_servicio" => 1,
+            "fecha"         => $fechaFormateada
+        ];
+
+        if (
+            empty($datosCliente["nombre"]) || empty($datosCliente["cedula"]) ||
+            empty($datosCliente["telefono"]) || empty($datosCliente["correo"])
+        ) {
+            $this->mostrarAlerta("error", "Faltan datos personales obligatorios.", "formulario");
+            return;
+        }
+
+        $respuestaCliente = clienteModel::registrarCliente($datosCliente, "clientes");
+
+        if (!is_array($respuestaCliente) || $respuestaCliente[0] !== "success") {
+            $this->mostrarAlerta("error", "Error al registrar cliente.", "formulario");
+            return;
+        }
+
+        $idCliente = $respuestaCliente[1];
+    }
+
+    // ============================================
+    // PASO 2: DATOS DINÁMICOS DEL FORMULARIO
+    // ============================================
+    $camposArchivos = [];
+    $camposTexto = [];
+
+    $excluirCamposSistema = [
+        'btnRegistroCliente', 'servicio', 'formRegistroCliente',
+        'codigo_seguimiento', 'id_servicio', 'id_asesor', 'id_cliente',
+        'cantidad_doc', 'abono_inicial', 'precio', 'nombre_asesor',
+        'fecha_entrega', 'codigo_referido'
+    ];
+    $excluirPrefijos = ['paso1_'];
+    $excluirPaso1Directos = [
+        'nombres', 'apellidos', 'correo', 'celular',
+        'whatsapp', 'cedula', 'metodo_pago', 'fecha_pago'
+    ];
+
+    foreach ($_POST as $key => $value) {
+        if (in_array($key, $excluirCamposSistema)) continue;
+        foreach ($excluirPrefijos as $prefijo) {
+            if (strpos($key, $prefijo) === 0) continue 2;
+        }
+        if (in_array($key, $excluirPaso1Directos)) continue;
+        $camposTexto[$key] = htmlspecialchars($value);
+    }
+
+    if (!empty($_FILES)) {
+        foreach ($_FILES as $key => $file) {
+            if (strpos($key, 'paso1_') === 0) continue;
+            if ($file['error'] === UPLOAD_ERR_OK) {
+                $camposArchivos[$key] = $file;
+            } else if ($file['error'] !== UPLOAD_ERR_NO_FILE) {
+                $this->mostrarAlerta("error", "Error al subir archivo: " . $key, "formulario");
+                return;
+            }
+        }
+    }
+
+    // ============================================
+    // ACTUALIZAR VENTA EXISTENTE
+    // ============================================
+    $codigoVenta = $_POST["codigo_seguimiento"];
+
+    $ventaExistente = model::consultaDatoModel("ventas", "codigo", $codigoVenta);
+
+    if (!$ventaExistente) {
+        $this->mostrarAlerta("error", "No se encontró la venta asociada al código.", "formulario");
+        return;
+    }
+
+    $idVenta = $ventaExistente["id"];
+
+    $datosActualizarVenta = [
+        "id"          => $idVenta,
+        "id_cliente"  => $idCliente,
+        "campos_form" => json_encode($camposTexto, JSON_UNESCAPED_UNICODE),
+        "estado"      => 1
+    ];
+
+    $respuestaVenta = clienteModel::actualizarVentaPendiente($datosActualizarVenta, "ventas");
+
+    if (!$respuestaVenta) {
+        $this->mostrarAlerta("error", "Error al actualizar la venta.", "formulario");
+        return;
+    }
+
+    // ============================================
+    // PROCESAR ARCHIVOS DEL PASO 2
+    // ============================================
+    if (!empty($camposArchivos)) {
+        foreach ($camposArchivos as $campoNombre => $archivo) {
+            if ($archivo['error'] === UPLOAD_ERR_OK) {
+                $file_tmp  = $archivo['tmp_name'];
+                $file_name = basename($archivo['name']);
+                $file_type = mime_content_type($file_tmp);
+
+                $tiposPermitidos = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+
+                if (in_array($file_type, $tiposPermitidos)) {
+                    $extension        = pathinfo($file_name, PATHINFO_EXTENSION);
+                    $nombreSinEspacios = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file_name);
+                    $nombreSinExtension = pathinfo($nombreSinEspacios, PATHINFO_FILENAME);
+                    $nuevo_nombre     = $idVenta . "_" . time() . "_" . substr(md5($nombreSinExtension), 0, 8) . "." . $extension;
+                    $ruta_destino     = $uploads_dir . $nuevo_nombre;
+
+                    if (move_uploaded_file($file_tmp, $ruta_destino)) {
+                        $datosArchivo = [
+                            "id_venta"      => $idVenta,
+                            "nombre"        => ucfirst(str_replace('_', ' ', $campoNombre)),
+                            "nombre_archivo" => $nuevo_nombre,
+                            "ruta"          => $ruta_destino,
+                            "tipo"          => $file_type,
+                            "campo_origen"  => $campoNombre,
+                            "tipo_ruta"     => "web",
+                            "fecha"         => $fechaFormateada
+                        ];
+                        clienteModel::subirArchivosFormClientes($datosArchivo, "archivos");
+                    } else {
+                        error_log("Error al mover archivo: $file_name");
+                    }
+                } else {
+                    error_log("Tipo de archivo no permitido: $file_type ($file_name)");
+                }
+            }
+        }
+    }
+
+    // ============================================
+    // REGISTRAR PAGO
+    // ============================================
+    $datosPago = [
+        "id_venta"   => $idVenta,
+        "id_asesor"  => $_POST["id_asesor"],
+        "valor"      => $_POST["abono_inicial"],
+        "metodo_pago" => $_POST["metodo_pago"],
+        "estado"     => "aprobado",
+        "fecha_pago" => $_POST["fecha_pago"],
+        "fecha"      => $fechaFormateada
+    ];
+    clienteModel::insertarPagoVenta($datosPago, "pagos");
+
+    clienteModel::actualizarEstadoEnlace($_POST["codigo_seguimiento"], 2, "enlace_temporal");
+
+    $wpp_cliente = !empty($_POST["paso1_whatsapp"] ?? "")
+        ? $_POST["paso1_whatsapp"]
+        : ($_POST["paso1_celular"] ?? "");
+
+    require_once "functions/wpp.php";
+    enviarWhatsAppZenviaTemplate(
+        $wpp_cliente,
+        "89d67798-3cd8-442a-a621-9caf1c9b5e65",
+        ["Nombre" => $_POST["paso1_nombres"]]
+    );
+
+    echo '<script>
+        window.location = "' . BASE_URL . 'registro-exitoso?ok=1&codigo=' . urlencode($_POST["codigo_seguimiento"]) . '";
+    </script>';
+    exit();
+}
     public static function crearCliente($data)
     {
         // Buscar cliente por correo o cédula

@@ -19,6 +19,19 @@ class ventaModel
 
         return Conexion::conectar()->lastInsertId();
     }
+     public static function generarLinkVenta($datosModel, $tabla)
+    {
+        $stmt = Conexion::conectar()->prepare("INSERT INTO $tabla (tipo, codigo, estado, data, fecha) VALUES (:tipo, :codigo, :estado, :data, :fecha)");
+
+
+        $stmt->bindParam(":tipo", $datosModel["tipo"], PDO::PARAM_STR);
+        $stmt->bindParam(":codigo", $datosModel["codigo"], PDO::PARAM_STR);
+        $stmt->bindParam(":fecha", $datosModel["fecha"], PDO::PARAM_STR);
+        $stmt->bindParam(":estado", $datosModel["estado"], PDO::PARAM_INT);
+        $stmt->bindParam(":data", $datosModel["data"], PDO::PARAM_INT);
+
+        return $stmt->execute() ? "success" : "error";
+    }
 
     public static function actualizarEstadoVenta($datos, $tabla)
     {
@@ -33,19 +46,7 @@ class ventaModel
         return $stmt->execute() ? "success" : "error";
     }
 
-    public static function generarLinkVenta($datosModel, $tabla)
-    {
-        $stmt = Conexion::conectar()->prepare("INSERT INTO $tabla (tipo, codigo, estado, data, fecha) VALUES (:tipo, :codigo, :estado, :data, :fecha)");
-
-
-        $stmt->bindParam(":tipo", $datosModel["tipo"], PDO::PARAM_STR);
-        $stmt->bindParam(":codigo", $datosModel["codigo"], PDO::PARAM_STR);
-        $stmt->bindParam(":fecha", $datosModel["fecha"], PDO::PARAM_STR);
-        $stmt->bindParam(":estado", $datosModel["estado"], PDO::PARAM_INT);
-        $stmt->bindParam(":data", $datosModel["data"], PDO::PARAM_INT);
-
-        return $stmt->execute() ? "success" : "error";
-    }
+   
 
     public static function actualizarPagoWeb($datos, $tabla)
     {

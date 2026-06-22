@@ -2,7 +2,28 @@
 
 class clienteModel extends Conexion
 {
-    // En tu clienteModel.php
+    public static function actualizarVentaPendiente($datos, $tabla)
+{
+    $conexion = Conexion::conectar();
+    $sql = "UPDATE $tabla 
+            SET id_cliente  = :id_cliente,
+                campos_form = :campos_form,
+                estado      = :estado
+            WHERE id = :id";
+    $stmt = $conexion->prepare($sql);
+    try {
+        $stmt->execute([
+            ':id_cliente'  => $datos['id_cliente'],
+            ':campos_form' => $datos['campos_form'],
+            ':estado'      => $datos['estado'],
+            ':id'          => $datos['id']
+        ]);
+        return true;
+    } catch (PDOException $e) {
+        error_log("Error al actualizar venta pendiente: " . $e->getMessage());
+        return false;
+    }
+}
 
     public static function registrarCliente($datos, $tabla)
     {
