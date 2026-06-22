@@ -1,0 +1,25 @@
+RewriteEngine On
+RewriteBase /apostillas/
+
+# Rutas con hasta 7 parámetros dinámicos
+RewriteRule ^([\w-]+)/?$ index.php?action=$1 [QSA,L]
+RewriteRule ^([\w-]+)/([\w-]+)/?$ index.php?action=$1&param1=$2 [QSA,L]
+RewriteRule ^([\w-]+)/([\w-]+)/([\w-]+)/?$ index.php?action=$1&param1=$2&param2=$3 [QSA,L]
+RewriteRule ^([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)/?$ index.php?action=$1&param1=$2&param2=$3&param3=$4 [QSA,L]
+RewriteRule ^([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)/?$ index.php?action=$1&param1=$2&param2=$3&param3=$4&param4=$5 [QSA,L]
+RewriteRule ^([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)/?$ index.php?action=$1&param1=$2&param2=$3&param3=$4&param4=$5&param5=$6 [QSA,L]
+RewriteRule ^([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)/?$ index.php?action=$1&param1=$2&param2=$3&param3=$4&param4=$5&param5=$6&param6=$7 [QSA,L]
+
+# Bloquear acceso directo a archivos PHP sensibles
+<FilesMatch "\.(php|inc)$">
+    Require all denied
+</FilesMatch>
+
+# Permitir solo acceso a index.php y recognize.php
+<Files index.php>
+    Require all granted
+</Files>
+
+<Files recognize.php>
+    Require all granted
+</Files>
